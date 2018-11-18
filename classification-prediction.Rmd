@@ -1,0 +1,89 @@
+---
+title: "Classification Prediction"
+author: "Gustavo Monteiro"
+date: "November 18, 2018"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+library(caret)
+library(rattle)
+library(tidyverse)
+library(dataPreparation)
+```
+
+
+> The database that will be used in this study consists of data on the votes that candidates for the Federal Chamber of Deputies received in the years 2006 and 2010 (source: http://www.tse.jus.br), as well as information on campaigning, party, schooling, ... of them.
+
+## Loading data.
+```{r}
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+```
+
+
+```{r}
+# train <- train %>% 
+#   mutate(uf = as.factor(uf),
+#          nome = as.factor(nome),
+#          sexo = as.factor(sexo),
+#          grau = as.factor(grau),
+#          nome = as.factor(nome),
+#          cargo = as.factor(cargo),
+#          partido = as.factor(partido),
+#          situacao = as.factor(situacao),
+#          ocupacao = as.factor(ocupacao),
+#          estado_civil = as.factor(estado_civil),
+#          sequencial_candidato = as.numeric(sequencial_candidato))
+# 
+# encoding <- build_encoding(dataSet = train,
+#                            cols = c("uf","sexo","grau",
+#                                     "partido","estado_civil"),
+#                            verbose = F)
+# 
+# train <- one_hot_encoder(dataSet = train,
+#                            encoding = encoding,
+#                            drop = TRUE,
+#                            verbose = F)
+```
+
+
+```{r}
+## Removing categoric variables.
+train <- train %>% select(-nome, -uf, -estado_civil, 
+                          -partido, -ocupacao,-ano, 
+                          -cargo,-grau,-sexo, 
+                          -sequencial_candidato)
+
+```
+
+
+```{r}
+tree <- train(situacao ~ .,
+              train,
+              method="rpart", 
+              trControl = trainControl(method = "boot"))
+```
+
+```{r}
+tree
+```
+
+```{r}
+tree$finalModel
+```
+
+```{r}
+# plot the model
+plot(tree$finalModel, uniform=TRUE,
+     main="Classification Tree")
+text(tree$finalModel, all=TRUE, cex=.8)
+```
+
+```{r}
+fancyRpartPlot(tree$finalModel)
+```
+
