@@ -110,10 +110,10 @@ logistic$finalModel
 ```
 
 ```{r}
-adaboost <- train(situacao ~ ., train, train, 
-                             method = "AdaBoost.M1", 
-                             trControl = trainControl(method = "boot", classProbs = TRUE),
-                             metric = "ROC", 
-                             preProc = c("center", "scale"))
+# adaboost <- train(situacao ~ ., train, train, 
+#                              method = "AdaBoost.M1", 
+#                              trControl = trainControl(method = "boot", classProbs = TRUE),
+#                              metric = "ROC", 
+#                              preProc = c("center", "scale"))
 ```
 
