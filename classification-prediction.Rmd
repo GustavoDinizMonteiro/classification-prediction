@@ -110,10 +110,28 @@ logistic$finalModel
 ```
 
 ```{r}
-# adaboost <- train(situacao ~ ., train, train, 
-#                              method = "AdaBoost.M1", 
-#                              trControl = trainControl(method = "boot", classProbs = TRUE),
-#                              metric = "ROC", 
-#                              preProc = c("center", "scale"))
+seeds <- vector(mode = "list", length = nrow(train) + 1)
+seeds <- lapply(seeds, function(x) 1:20)
+
+cctrl3 <- trainControl(method = "none",
+                       classProbs = TRUE, 
+                       summaryFunction = twoClassSummary,
+                       seeds = seeds)
+
+adaboost <- train(situacao ~ ., train,
+                             method = "AdaBoost.M1",
+                             trControl = cctrl3,
+                             preProc = c("center", "scale"), 
+                            tuneGrid = data.frame(mfinal = 10, 
+                                                     maxdepth = 1,
+                                                     coeflearn = "Zhu"))
+```
+
+```{r}
+adaboost
+```
+
+```{r}
+adaboost$finalModel
 ```
 
