@@ -87,3 +87,33 @@ text(tree$finalModel, all=TRUE, cex=.8)
 fancyRpartPlot(tree$finalModel)
 ```
 
+
+```{r}
+rlGrid <- expand.grid( cost = c(200,2,0.02),
+                       loss = c("L1", "L2_dual", "L2_primal"),
+                       epsilon = c(0.001,0.01) )
+
+logistic <- train(situacao ~ ., train, 
+                             method = "regLogistic", 
+                             trControl = trainControl(method = "boot", classProbs = TRUE),
+                             metric = "ROC", 
+                             preProc = c("center", "scale"),
+                             tuneGrid = rlGrid)
+```
+
+```{r}
+logistic
+```
+
+```{r}
+logistic$finalModel
+```
+
+```{r}
+adaboost <- train(situacao ~ ., train, train, 
+                             method = "AdaBoost.M1", 
+                             trControl = trainControl(method = "boot", classProbs = TRUE),
+                             metric = "ROC", 
+                             preProc = c("center", "scale"))
+```
+
