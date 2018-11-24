@@ -66,25 +66,35 @@ tree <- train(situacao ~ .,
               train,
               method="rpart", 
               trControl = trainControl(method = "boot"))
+
+cctrl3 <- trainControl(method = "none", classProbs = TRUE, summaryFunction = twoClassSummary)
+
+ggtree <- train(situacao ~ .,
+              train,
+                               method = "rpart", 
+                               trControl = cctrl3,
+                               tuneGrid = tree$bestTune,
+                               metric = "ROC", 
+                                preProc = c("center", "scale"))
 ```
 
 ```{r}
-tree
+ggtree
 ```
 
 ```{r}
-tree$finalModel
+ggtree$finalModel
 ```
 
 ```{r}
 # plot the model
-plot(tree$finalModel, uniform=TRUE,
+plot(ggtree$finalModel, uniform=TRUE,
      main="Classification Tree")
-text(tree$finalModel, all=TRUE, cex=.8)
+text(ggtree$finalModel, all=TRUE, cex=.8)
 ```
 
 ```{r}
-fancyRpartPlot(tree$finalModel)
+fancyRpartPlot(ggtree$finalModel)
 ```
 
 
