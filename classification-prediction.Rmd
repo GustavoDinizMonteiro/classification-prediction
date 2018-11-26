@@ -13,6 +13,7 @@ library(caret)
 library(rattle)
 library(tidyverse)
 library(dataPreparation)
+library(MLmetrics)
 ```
 
 
@@ -52,6 +53,16 @@ test <- read.csv("test.csv")
 
 
 ```{r}
+f1 <- function(data, lev = NULL, model = NULL) {
+  f1_val <- F1_Score(y_pred = data$pred, y_true = data$obs, positive = lev[1])
+  c(F1 = f1_val)
+}
+
+lambda <- expand.grid(.cp = seq(from=0, to=0.02, by=0.005))
+```
+
+
+```{r}
 ## Removing categoric variables.
 train <- train %>% select(-nome, -uf, -estado_civil, 
                           -partido, -ocupacao,-ano, 
@@ -64,17 +75,20 @@ train <- train %>% select(-nome, -uf, -estado_civil,
 ```{r}
 tree <- train(situacao ~ .,
               train,
-              method="rpart", 
-              trControl = trainControl(method = "boot"))
+              method="rpart",
+              metric = "F1",
+              tuneGrid = lambda,
+              preProc = c("center", "scale"),
+              trControl = trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot"))
 
-cctrl3 <- trainControl(method = "none", classProbs = TRUE, summaryFunction = twoClassSummary)
+ cctrl3 <- trainControl(method = "none", classProbs = TRUE, summaryFunction = twoClassSummary)
 
 ggtree <- train(situacao ~ .,
               train,
-                               method = "rpart", 
-                               trControl = cctrl3,
+                               method = "rpart",
                                tuneGrid = tree$bestTune,
-                               metric = "ROC", 
+                               metric = "F1", 
+              trControl = trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot"),
                                 preProc = c("center", "scale"))
 ```
 
@@ -96,6 +110,7 @@ text(ggtree$finalModel, all=TRUE, cex=.8)
 ```{r}
 fancyRpartPlot(ggtree$finalModel)
 ```
+
 
 
 ```{r}
