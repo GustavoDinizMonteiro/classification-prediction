@@ -152,12 +152,18 @@ text(ggtree$finalModel, all=TRUE, cex=.8)
 fancyRpartPlot(ggtree$finalModel)
 ```
 
+```{r}
+ggplot(tree)
+```
+
 
 
 ```{r}
 rlGrid <- expand.grid( cost = c(200,2,0.02),
                        loss = c("L1", "L2_dual", "L2_primal"),
-                       epsilon = c(0.001,0.01) )
+                       epsilon = seq(from=0, to=0.02, by=0.005))
+
+cctrl$method = "cv"
 
 logistic <- train(situacao ~ ., train, 
                              method = "regLogistic", 
@@ -175,11 +181,17 @@ logistic
 logistic$finalModel
 ```
 
-```{r warning=FALSE}
+```{r}
+ggplot(logistic)
+```
+
+
+```{r warning=FALSE, message=FALSE}
 seeds <- vector(mode = "list", length = nrow(train) + 1)
 seeds <- lapply(seeds, function(x) 1:20)
 
 cctrl$seeds <- seeds
+cctrl$method <- "boot"
 
 adaboost <- train(situacao ~ ., train,
                              method = "AdaBoost.M1",
@@ -195,6 +207,6 @@ adaboost
 ```
 
 ```{r}
-adaboost$finalModel
+ggplot(adaboost)
 ```
 
