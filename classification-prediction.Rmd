@@ -14,6 +14,8 @@ library(rattle)
 library(tidyverse)
 library(dataPreparation)
 library(MLmetrics)
+library(GGally)
+library(ggmosaic)
 ```
 
 
@@ -27,28 +29,67 @@ test <- read.csv("test.csv")
 
 
 ```{r}
-# train <- train %>% 
-#   mutate(uf = as.factor(uf),
-#          nome = as.factor(nome),
-#          sexo = as.factor(sexo),
-#          grau = as.factor(grau),
-#          nome = as.factor(nome),
-#          cargo = as.factor(cargo),
-#          partido = as.factor(partido),
-#          situacao = as.factor(situacao),
-#          ocupacao = as.factor(ocupacao),
-#          estado_civil = as.factor(estado_civil),
-#          sequencial_candidato = as.numeric(sequencial_candidato))
-# 
-# encoding <- build_encoding(dataSet = train,
-#                            cols = c("uf","sexo","grau",
-#                                     "partido","estado_civil"),
-#                            verbose = F)
-# 
-# train <- one_hot_encoder(dataSet = train,
-#                            encoding = encoding,
-#                            drop = TRUE,
-#                            verbose = F)
+train %>%
+  glimpse()
+```
+
+```{r}
+train %>%
+  map_df(function(x) sum(is.na(x))) %>%
+  gather(feature, num_nulls) %>%
+  arrange(desc(num_nulls))
+```
+
+### Imbalance on class distribution
+
+```{r}
+train %>%
+  ggplot(aes(situacao)) +
+  geom_bar()
+```
+
+```{r}
+train %>% 
+  select(-ano,
+         -sequencial_candidato,
+         -nome) %>%
+  select(
+    quantidade_doacoes,
+    quantidade_doadores,
+    total_receita,
+    media_receita,
+    recursos_de_outros_candidatos.comites,
+    recursos_de_pessoas_fisicas,
+    recursos_de_pessoas_juridicas,
+    recursos_proprios,
+    `recursos_de_partido_politico`) %>%
+  na.omit() %>%
+  ggcorr(palette = "RdBu", label = TRUE,
+       hjust = 0.95, label_size = 3,size = 3,
+       nbreaks = 5, layout.exp = 5) +
+  ggtitle("Correlation plot for employed variables")
+```
+
+```{r}
+train %>%
+ggplot() +
+   geom_mosaic(aes(x = product(sexo, situacao),
+                   fill=sexo)) +
+   theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+```
+
+
+```{r}
+encoding <- build_encoding(dataSet = train,
+                           cols = c("sexo"),
+                           verbose = F)
+
+train <- one_hot_encoder(dataSet = train,
+                           encoding = encoding,
+                           drop = TRUE,
+                           verbose = F)
 ```
 
 
@@ -63,16 +104,17 @@ lambda <- expand.grid(.cp = seq(from=0, to=0.02, by=0.005))
 
 
 ```{r}
-## Removing categoric variables.
-train <- train %>% select(-nome, -uf, -estado_civil, 
-                          -partido, -ocupacao,-ano, 
-                          -cargo,-grau,-sexo, 
-                          -sequencial_candidato)
+## Removing variables that was unnecessary or has a minim
+train <- train %>% select(-nome,-ano, -ocupacao, -partido,
+                          -estado_civil, -grau, -cargo,
+                          -sequencial_candidato, -uf)
 
 ```
 
 
 ```{r}
+cctrl <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot")
+
 tree <- train(situacao ~ .,
               train,
               method="rpart",
@@ -81,7 +123,6 @@ tree <- train(situacao ~ .,
               preProc = c("center", "scale"),
               trControl = trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot"))
 
- cctrl3 <- trainControl(method = "none", classProbs = TRUE, summaryFunction = twoClassSummary)
 
 ggtree <- train(situacao ~ .,
               train,
@@ -120,8 +161,8 @@ rlGrid <- expand.grid( cost = c(200,2,0.02),
 
 logistic <- train(situacao ~ ., train, 
                              method = "regLogistic", 
-                             trControl = trainControl(method = "boot", classProbs = TRUE),
-                             metric = "ROC", 
+                             trControl = cctrl,
+                             metric = "F1", 
                              preProc = c("center", "scale"),
                              tuneGrid = rlGrid)
 ```
@@ -134,18 +175,15 @@ logistic
 logistic$finalModel
 ```
 
-```{r}
+```{r warning=FALSE}
 seeds <- vector(mode = "list", length = nrow(train) + 1)
 seeds <- lapply(seeds, function(x) 1:20)
 
-cctrl3 <- trainControl(method = "none",
-                       classProbs = TRUE, 
-                       summaryFunction = twoClassSummary,
-                       seeds = seeds)
+cctrl$seeds <- seeds
 
 adaboost <- train(situacao ~ ., train,
                              method = "AdaBoost.M1",
-                             trControl = cctrl3,
+                             trControl = cctrl,
                              preProc = c("center", "scale"), 
                             tuneGrid = data.frame(mfinal = 10, 
                                                      maxdepth = 1,
