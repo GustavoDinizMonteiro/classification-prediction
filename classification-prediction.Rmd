@@ -44,7 +44,7 @@ train %>%
 
 > following, we will explore classes balance of data attributes, that is an important point to prevent overfiting in prediction models.
 
-Feature by feature, we will show balance by target variable, which in this study is `situaçao`, whether a deputy was elected or not
+Feature by feature, we will show balance by target variable, which in this study is `situaçao`, whether a deputy was elected or not, and comment if the class is umbalanced
 
 ### recursos_proprios
 ```{r}
@@ -52,6 +52,8 @@ train %>%
   ggplot(aes(situacao,recursos_proprios)) +
   geom_boxplot()
 ```
+
+unbalanced, high ranges recourse is more common in non-elected
 
 ### recursos_de_partido_politico
 ```{r}
@@ -61,7 +63,7 @@ train %>%
   geom_boxplot()
 ```
 
-unbalanced, high parties recourse is more common in elected
+unbalanced, high ranges recourse is more common in elected
 
 ### recursos_de_outros_candidatos.comites
 ```{r}
@@ -71,7 +73,7 @@ train %>%
   geom_boxplot()
 ```
 
-the same case of `recursos_de_partido_politico`
+the same situation of `recursos_de_partido_politico`
 
 ### recursos_de_pessoas_fisicas
 ```{r}
@@ -201,7 +203,7 @@ test <- one_hot_encoder(dataSet = test,
 ```
 
 
-Creating a personal function to evaluente F1 metric of a model.
+## Creating a personal function to evaluente F1 metric of a model.
 ```{r}
 f1 <- function(data, lev = NULL, model = NULL) {
   f1_val <- F1_Score(y_pred = data$pred, y_true = data$obs, positive = lev[1])
@@ -218,7 +220,7 @@ F_Measure <- function(expected, predicted, ...) {
 }
 ```
 
-And we will remove all variables that has no or minimum variance beacuse them is uncessary for creating models.
+## And we will remove all variables that has no or minimum variance beacuse them is uncessary for creating models.
 ```{r}
 ## Removing variables that was unnecessary or has a minim
 train <- train %>% select(-nome,-ano, -ocupacao, -partido,
@@ -236,8 +238,10 @@ test <- test %>% select(-nome,-ano, -ocupacao, -partido,
 
 > Finally, we can start to create the five models that we will test here, begining by decision three.
 
-## Dessision Three
+# Dessision Three
 ```{r}
+set.seed(1)
+
 cctrl <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot", sampling = "smote")
 lambda <- expand.grid(.cp = seq(from=0, to=0.02, by=0.005))
 
@@ -250,18 +254,17 @@ tree <- train(situacao ~ .,
               trControl = trainControl(summaryFunction = f1, classProbs = TRUE, method = "boot"))
 ```
 
-Resultant model
+## Resultant model
 ```{r}
 varImp(tree)
 ```
 
-and the best tunning for him
+## and the best tunning for him
 ```{r}
 tree$finalModel
 ```
 
-Let's see the final three
-
+## Let's see the final three
 ```{r}
 # plot the model
 plot(tree$finalModel, uniform=TRUE,
@@ -269,13 +272,12 @@ plot(tree$finalModel, uniform=TRUE,
 text(tree$finalModel, all=TRUE, cex=.8)
 ```
 
-and the same but more pretty
-
+## and the same but more pretty
 ```{r}
 fancyRpartPlot(tree$finalModel)
 ```
 
-Model validation using false positive and false negative percentages of predictions
+## Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
@@ -285,14 +287,17 @@ data.frame(validation %>%
   summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
-and now the F1 performance graph of this model for all hyper params tested
+## and now the F1 performance graph of this model for all hyper params tested
 ```{r}
 ggplot(tree)
 ```
 
+the F1 metric is medin to good, and the performance in validation predictions of false potives and false negatives together account for about 8%,
+for a medium F1 were good results
 
-## Logistic regression
+# Logistic regression
 ```{r}
+set.seed(1)
 rlGrid <- expand.grid( cost = c(200,2,0.02),
                        loss = c("L2_dual"),
                        epsilon = c(0.001, 0.01) )
@@ -307,17 +312,18 @@ logistic <- train(situacao ~ ., train,
                              tuneGrid = rlGrid)
 ```
 
-Resultant model
+## Resultant model
 ```{r}
 varImp(logistic)
 ```
 
-and the best tunning for him
+## and the best tunning for him
+
 ```{r}
 logistic$finalModel
 ```
 
-Model validation using false positive and false negative percentages of predictions
+## Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
@@ -328,14 +334,18 @@ data.frame(validation %>%
 ```
 
 
-and now the F1 performance graph of this model for all hyper params tested
+## and now the F1 performance graph of this model for all hyper params tested
+
 ```{r}
 ggplot(logistic)
 ```
 
+the F1 metric is median, and the performance in validation predictions of false potives and false negatives together account for about 8%,
+for a medium F1 were good results, with more false negatives than false positives.
 
-## KNN
+# KNN
 ```{r}
+set.seed(1)
 neighborsGrid <- expand.grid(.k = seq(from=1, to=50, by=1))
 
 knn <- train(situacao ~ ., train,
@@ -345,17 +355,19 @@ knn <- train(situacao ~ ., train,
         trControl = cctrl2)
 ```
 
-Resultant model
+## Resultant model
+
 ```{r}
 varImp(knn)
 ```
 
-and the best tunning for him
+## and the best tunning for him
+
 ```{r}
 knn$bestTune
 ```
 
-Model validation using false positive and false negative percentages of predictions
+## Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
@@ -365,20 +377,24 @@ data.frame(validation %>%
   summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
-and now the F1 performance graph of this model for all hyper params tested
+## and now the F1 performance graph of this model for all hyper params tested
+
 ```{r}
 ggplot(knn)
 ```
 
-## AdaBoost
+the F1 metric performance is similar to the decision tree, the same in false positives/negatives prcentage in predictions of validation set.
+
+# AdaBoost
 ```{r warning=FALSE, message=FALSE}
-grid <- expand.grid(mfinal = (1:3)*3, maxdepth = c(1, 3),
+set.seed(1)
+grid <- expand.grid(mfinal = (1:3)*3, maxdepth = c(1, 2),
                     coeflearn = c("Breiman", "Freund", "Zhu"))
 
 seeds <- vector(mode = "list", length = nrow(train) + 1)
 seeds <- lapply(seeds, function(x) 1:20)
 
-cctrl2 <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "cv", number = 5, sampling = "smote")
+cctrl2 <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "cv", number = 5)
 adaboost <- train(situacao ~ ., train, 
                              method = "AdaBoost.M1", 
                              trControl = cctrl,
@@ -388,17 +404,13 @@ adaboost <- train(situacao ~ ., train,
                              preProc = c("center", "scale"))
 ```
 
-Resultant model
+## Resultant model
+
 ```{r}
 varImp(adaboost)
 ```
 
-and the best tunning for him
-```{r}
-adaboost$finalModel
-```
-
-Model validation using false positive and false negative percentages of predictions
+## Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
@@ -408,15 +420,17 @@ data.frame(validation %>%
   summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
-and now the F1 performance graph of this model for all hyper params tested
+## and now the F1 performance graph of this model for all hyper params tested
+
 ```{r}
 ggplot(adaboost)
 ```
 
+the F1 metric is median, with a courious results of validation, a minimal percentage of false negatives and more than 11% of false positives.
 
 > In all models, and shown more explicitly in the decision tree, parameters for spending money in the field seem to be the most important, and show what really makes a difference for a candidate to be elected or not.
 
-## Following, we will test and big famous model, the gradient boosting.
+## Following, we will test and big famous model, the gradient boosting, as a extra model.
 
 ```{r}
 seeds <- vector(mode = "list", length = nrow(train) + 1)
@@ -443,12 +457,13 @@ gbm <- train(situacao ~ ., train,
                             distribution = "adaboost")
 ```
 
-the best tunning for him
+## the best tunning for him
+
 ```{r}
 gbm$bestTune
 ```
 
-Model validation using false positive and false negative percentages of predictions
+## Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
@@ -458,17 +473,23 @@ data.frame(validation %>%
   summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
-and now the F1 performance graph of this model for all hyper params tested
+## and now the F1 performance graph of this model for all hyper params tested
+
 ```{r}
 ggplot(gbm)
 ```
 
+the F1 metric is the best achieved among the models created in this study, even the performance in validation being practically the same as the other models in false positives/negatives.
 
-Now, lets predict results using test data for submit for keggle class competition.
+## Results
+
+The results of this study show that the models achieve a reasonable performance for metric F1, being the gradient boosting model the chosen one for the sending to competition of the Kaggle, we also saw that in the general, variables referring to financial investment and support of companies were the features that in all models showed to have the greatest relevance
+
+ > Generation predictions for test dataframe to submit to Kaggle, to related [competition](https://www.kaggle.com/c/ufcg-cdp-20182).
+
 ```{r}
 prediction <- predict(gbm, test)
 data_out <- data.frame(ID = test$sequencial_candidato, Predicted = prediction) 
 data_out$ID <-as.character(data_out$ID)  
-data_out %>% write_csv(path = "response.csv") 
-prediction
+data_out %>% write_csv(path = "response.csv")
 ```
