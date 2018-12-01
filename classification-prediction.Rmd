@@ -23,8 +23,16 @@ library(ggmosaic)
 
 ## Loading data.
 ```{r}
-train <- read.csv("train.csv")
+set.seed(1)
+
+data <- read.csv("train.csv")
+data$id <- 1:nrow(data)
+
+data %>% 
+  sample_frac(.7) -> train
+
 test <- read.csv("test.csv")
+dplyr::anti_join(data, train, by = 'id') -> validation
 ```
 
 > Let's explore the data features
@@ -173,6 +181,15 @@ train <- one_hot_encoder(dataSet = train,
                            drop = TRUE,
                            verbose = F)
 
+encoding <- build_encoding(dataSet = validation,
+                           cols = c("sexo"),
+                           verbose = F)
+
+validation <- one_hot_encoder(dataSet = validation,
+                           encoding = encoding,
+                           drop = TRUE,
+                           verbose = F)
+
 encoding <- build_encoding(dataSet = test,
                            cols = c("sexo"),
                            verbose = F)
@@ -190,12 +207,25 @@ f1 <- function(data, lev = NULL, model = NULL) {
   f1_val <- F1_Score(y_pred = data$pred, y_true = data$obs, positive = lev[1])
   c(F1 = f1_val)
 }
+
+F_Measure <- function(expected, predicted, ...) {
+  data.frame(expected=expected,
+             prediction=predicted) %>%
+      mutate(fn = ifelse(expected == "eleito" &
+                         prediction == "nao_eleito",1,0),
+             fp = ifelse(expected == "nao_eleito" &
+                         prediction == "eleito",1,0)) -> result
+}
 ```
 
 And we will remove all variables that has no or minimum variance beacuse them is uncessary for creating models.
 ```{r}
 ## Removing variables that was unnecessary or has a minim
 train <- train %>% select(-nome,-ano, -ocupacao, -partido,
+                          -estado_civil, -grau, -cargo,
+                          -sequencial_candidato, -uf)
+
+validation <- validation %>% select(-nome,-ano, -ocupacao, -partido,
                           -estado_civil, -grau, -cargo,
                           -sequencial_candidato, -uf)
 
@@ -245,6 +275,13 @@ and the same but more pretty
 fancyRpartPlot(tree$finalModel)
 ```
 
+```{r}
+data.frame(validation %>%
+  select(-situacao) %>%
+  predict(object=tree,.) %>%
+  F_Measure(validation$situacao,.) %>% 
+  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+```
 
 and now the F1 performance graph of this model for all hyper params tested
 ```{r}
@@ -278,6 +315,15 @@ and the best tunning for him
 logistic$finalModel
 ```
 
+```{r}
+data.frame(validation %>%
+  select(-situacao) %>%
+  predict(object=logistic,.) %>%
+  F_Measure(validation$situacao,.) %>% 
+  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+```
+
+
 and now the F1 performance graph of this model for all hyper params tested
 ```{r}
 ggplot(logistic)
@@ -303,6 +349,14 @@ varImp(knn)
 and the best tunning for him
 ```{r}
 knn$bestTune
+```
+
+```{r}
+data.frame(validation %>%
+  select(-situacao) %>%
+  predict(object=knn,.) %>%
+  F_Measure(validation$situacao,.) %>% 
+  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -335,6 +389,14 @@ varImp(adaboost)
 and the best tunning for him
 ```{r}
 adaboost$finalModel
+```
+
+```{r}
+data.frame(validation %>%
+  select(-situacao) %>%
+  predict(object=adaboost,.) %>%
+  F_Measure(validation$situacao,.) %>% 
+  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -374,6 +436,15 @@ gbm <- train(situacao ~ ., train,
 the best tunning for him
 ```{r}
 gbm$bestTune
+```
+
+
+```{r}
+data.frame(validation %>%
+  select(-situacao) %>%
+  predict(object=gbm,.) %>%
+  F_Measure(validation$situacao,.) %>% 
+  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
