@@ -29,10 +29,10 @@ data <- read.csv("train.csv")
 data$id <- 1:nrow(data)
 
 data %>% 
-  sample_frac(.7) -> train
+  sample_frac(.9) -> train
 
 test <- read.csv("test.csv")
-dplyr::anti_join(data, train, by = 'id') -> validation
+anti_join(data, train, by = 'id') -> validation
 ```
 
 > Let's explore the data features
@@ -223,11 +223,11 @@ And we will remove all variables that has no or minimum variance beacuse them is
 ## Removing variables that was unnecessary or has a minim
 train <- train %>% select(-nome,-ano, -ocupacao, -partido,
                           -estado_civil, -grau, -cargo,
-                          -sequencial_candidato, -uf)
+                          -sequencial_candidato, -uf, -id)
 
 validation <- validation %>% select(-nome,-ano, -ocupacao, -partido,
                           -estado_civil, -grau, -cargo,
-                          -sequencial_candidato, -uf)
+                          -sequencial_candidato, -uf, -id)
 
 test <- test %>% select(-nome,-ano, -ocupacao, -partido,
                           -estado_civil, -grau, -cargo, -uf)
@@ -275,12 +275,14 @@ and the same but more pretty
 fancyRpartPlot(tree$finalModel)
 ```
 
+Model validation using false positive and false negative percentages of predictions
+
 ```{r}
 data.frame(validation %>%
   select(-situacao) %>%
   predict(object=tree,.) %>%
   F_Measure(validation$situacao,.) %>% 
-  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+  summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -315,12 +317,14 @@ and the best tunning for him
 logistic$finalModel
 ```
 
+Model validation using false positive and false negative percentages of predictions
+
 ```{r}
 data.frame(validation %>%
   select(-situacao) %>%
   predict(object=logistic,.) %>%
   F_Measure(validation$situacao,.) %>% 
-  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+  summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
 
@@ -351,12 +355,14 @@ and the best tunning for him
 knn$bestTune
 ```
 
+Model validation using false positive and false negative percentages of predictions
+
 ```{r}
 data.frame(validation %>%
   select(-situacao) %>%
   predict(object=knn,.) %>%
   F_Measure(validation$situacao,.) %>% 
-  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+  summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -372,10 +378,11 @@ grid <- expand.grid(mfinal = (1:3)*3, maxdepth = c(1, 3),
 seeds <- vector(mode = "list", length = nrow(train) + 1)
 seeds <- lapply(seeds, function(x) 1:20)
 
-cctrl2 <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "cv", number = 10, sampling = "smote")
+cctrl2 <- trainControl(summaryFunction = f1, classProbs = TRUE, method = "cv", number = 5, sampling = "smote")
 adaboost <- train(situacao ~ ., train, 
                              method = "AdaBoost.M1", 
                              trControl = cctrl,
+                            na.action = na.exclude,
                              tuneGrid = grid,
                              metric = "F1", 
                              preProc = c("center", "scale"))
@@ -391,12 +398,14 @@ and the best tunning for him
 adaboost$finalModel
 ```
 
+Model validation using false positive and false negative percentages of predictions
+
 ```{r}
 data.frame(validation %>%
   select(-situacao) %>%
   predict(object=adaboost,.) %>%
   F_Measure(validation$situacao,.) %>% 
-  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+  summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -423,11 +432,12 @@ cctrl3 <- trainControl(
 gbm <- train(situacao ~ ., train, 
                              method = "gbm", 
                              trControl = cctrl3,
-                             metric = "F1", 
+                             metric = "F1",
+             na.action = na.exclude,
                              preProc = c("center", "scale"),
                              tuneGrid = expand.grid(interaction.depth = c(1, 2, 3, 4, 5),
                                        shrinkage = c(.12, .13),
-                                       n.trees = c(55, 56, 57, 58, 59, 60),
+                                       n.trees = c(55, 56, 57, 58, 59),
                                        n.minobsinnode = c(2,3)),
                              verbose = FALSE,
                             distribution = "adaboost")
@@ -438,13 +448,14 @@ the best tunning for him
 gbm$bestTune
 ```
 
+Model validation using false positive and false negative percentages of predictions
 
 ```{r}
 data.frame(validation %>%
   select(-situacao) %>%
   predict(object=gbm,.) %>%
   F_Measure(validation$situacao,.) %>% 
-  summarise(fn = sum(fn) / nrow(validation), fp = sum(fp) / nrow(validation)))
+  summarise(false_negative = sum(fn) / nrow(validation), false_positive = sum(fp) / nrow(validation)))
 ```
 
 and now the F1 performance graph of this model for all hyper params tested
@@ -455,7 +466,7 @@ ggplot(gbm)
 
 Now, lets predict results using test data for submit for keggle class competition.
 ```{r}
-prediction <- predict(knn, test)
+prediction <- predict(gbm, test)
 data_out <- data.frame(ID = test$sequencial_candidato, Predicted = prediction) 
 data_out$ID <-as.character(data_out$ID)  
 data_out %>% write_csv(path = "response.csv") 
